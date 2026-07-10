@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom'
 import './styles.css'
 import { initTheme, toggleTheme, getTheme } from './theme'
@@ -7,27 +7,23 @@ import { seedContext } from './seedContext'
 import { PIPELINE, SAMPLE_INSIGHTS, INTEGRATIONS } from './data'
 
 const FEATURES = [
-  { t: 'Channel & video ingest', d: 'Pull metadata via YouTube Data API; filter Shorts automatically.' },
-  { t: 'Transcript pipeline', d: 'Python workers + optional edge proxies when cloud IPs are blocked.' },
-  { t: 'Grounded AI insights', d: 'Claude extracts PM frameworks with quotes from the transcript text.' },
-  { t: 'RICE + actions', d: 'Priority, tools, example prompts, and week tie-ins per insight.' },
-  { t: 'Export packs', d: 'Markdown exports for transcripts and insight libraries.' },
-  { t: 'Full-stack TypeScript', d: 'React + Express + Drizzle/Postgres + Python orchestration.' },
+  { t: 'Channel & video ingest', d: 'YouTube Data API metadata; Shorts filtered.' },
+  { t: 'Transcript pipeline', d: 'Python workers + optional edge proxies.' },
+  { t: 'Grounded AI insights', d: 'Claude extracts PM frameworks with transcript quotes.' },
+  { t: 'RICE visualization', d: 'Reach, impact, confidence, effort as bars.' },
+  { t: 'Category filters', d: 'Focus strategy, metrics, research, and more.' },
+  { t: 'Markdown export', d: 'Copy a selected insight pack client-side.' },
 ]
 
-const RECRUITER = [
-  'Full-stack product: React, Express, Postgres, multi-language workers',
-  'AI product design with structured outputs grounded in source text',
-  'Production pragmatism: proxy fallbacks for blocked YouTube IPs',
-  'UI craft: shadcn/Tailwind app shell with light/dark in the full app',
-]
-
-const QUICK = [
-  'Deploy full app with DATABASE_URL + API keys on Railway/Render',
-  'Demo mode with seeded DB when env missing',
-  'Rate-limit Claude analysis per IP',
-  'Public read-only demo of a real channel pack',
-]
+type LiveInsight = {
+  id?: string
+  insight?: string
+  category?: string | null
+  transcript_nugget?: string | null
+  why_it_matters?: string | null
+  rice_score?: { reach?: number; impact?: number; confidence?: number; effort?: number } | null
+  video_id?: string
+}
 
 function ThemeToggle() {
   const [theme, setTheme] = useState(getTheme())
@@ -44,13 +40,13 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className={`shell${chatOpen ? ' shell--chat' : ''}`}>
       <header className="topbar">
         <Link to="/" className="brand">
-          YT Intel One
+          YouTube Intel Scan
         </Link>
         <nav className="nav" aria-label="Primary">
           <NavLink to="/" end>
             Home
           </NavLink>
-          <NavLink to="/app">Demo</NavLink>
+          <NavLink to="/app">Insights</NavLink>
           <NavLink to="/features">Features</NavLink>
         </nav>
         <ThemeToggle />
@@ -59,13 +55,12 @@ function Shell({ children }: { children: React.ReactNode }) {
       <ChatDock open={chatOpen} onOpenChange={setChatOpen} context={seedContext()} product="yt-intel-one" />
       <footer className="footer">
         <p>
-          Public product face for{' '}
+          Canonical repo:{' '}
           <a href="https://github.com/brianference/youtube-intel-scan" target="_blank" rel="noreferrer">
             youtube-intel-scan
           </a>{' '}
-          · full stack lives in that repo
+          · public site yt-intel-one
         </p>
-        <p className="fine">Demo insights below are illustrative shapes of the elite framework — production pulls from real transcripts.</p>
       </footer>
     </div>
   )
@@ -78,23 +73,17 @@ function Home() {
         <p className="kicker">YouTube Intel Scan · grounded PM learning from video</p>
         <h1>Transcripts in. Structured PM insights out.</h1>
         <p className="lede">
-          Full-stack intelligence app: ingest channels, download transcripts, and run Claude analysis that cites the
-          source text — RICE scores, actions, tools, and export packs for product builders.
+          Public product face for the full-stack transcript → Claude pipeline. Live insight cards can load from
+          Supabase when configured.
         </p>
         <div className="cta-row">
           <Link className="btn btn-primary" to="/app">
-            Open demo
+            Open insights
           </Link>
           <a className="btn btn-ghost" href="https://github.com/brianference/youtube-intel-scan" target="_blank" rel="noreferrer">
             Full source
           </a>
         </div>
-        <ul className="hero-points">
-          <li>Light & dark</li>
-          <li>Grounded AI chat</li>
-          <li>Public demo catalog</li>
-          <li>Cloudflare Pages</li>
-        </ul>
       </section>
       <section className="grid-3">
         {FEATURES.slice(0, 3).map((f) => (
@@ -124,7 +113,6 @@ function FeaturesPage() {
     <Shell>
       <section className="panel">
         <h1>Features</h1>
-        <p className="lede">What the full youtube-intel-scan app ships — and what this public site demos.</p>
         <div className="grid-2">
           {FEATURES.map((f) => (
             <article key={f.t} className="card">
@@ -134,38 +122,38 @@ function FeaturesPage() {
           ))}
         </div>
       </section>
-      <section className="panel subtle">
-        <h2>Engineering signals</h2>
-        <ul className="check-list">
-          {RECRUITER.map((r) => (
-            <li key={r}>{r}</li>
-          ))}
-        </ul>
-      </section>
-      <section className="panel">
-        <h2>Quick wins next</h2>
-        <ul className="check-list">
-          {QUICK.map((q) => (
-            <li key={q}>{q}</li>
-          ))}
-        </ul>
-      </section>
     </Shell>
   )
 }
 
-type LiveInsight = {
-  id?: string
-  insight?: string
-  category?: string | null
-  transcript_nugget?: string | null
-  rice_score?: { reach?: number; impact?: number; confidence?: number; effort?: number } | null
-  video_id?: string
+function RiceBars({ rice }: { rice: { reach?: number; impact?: number; confidence?: number; effort?: number } }) {
+  const rows = [
+    { k: 'Reach', v: rice.reach },
+    { k: 'Impact', v: rice.impact },
+    { k: 'Conf.', v: rice.confidence },
+    { k: 'Effort', v: rice.effort },
+  ]
+  return (
+    <div className="rice-bars">
+      {rows.map((r) => (
+        <div key={r.k} className="row">
+          <span>{r.k}</span>
+          <div className="track">
+            <div className="fill" style={{ width: `${Math.min(100, ((r.v ?? 0) / 10) * 100)}%` }} />
+          </div>
+          <span>{r.v ?? '—'}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function ProductApp() {
   const [live, setLive] = useState<LiveInsight[] | null>(null)
-  const [source, setSource] = useState<string>('loading')
+  const [source, setSource] = useState('loading')
+  const [cat, setCat] = useState('all')
+  const [selected, setSelected] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -188,60 +176,99 @@ function ProductApp() {
     }
   }, [])
 
-  const cards =
-    live && live.length > 0
-      ? live.map((i) => ({
-          id: i.id || i.insight || 'row',
-          category: i.category || 'Insight',
-          priority: 'Live',
-          title: i.insight || 'Insight',
-          nugget: i.transcript_nugget || i.insight || '',
-          rice: i.rice_score || {},
-          source: i.video_id ? `video ${i.video_id}` : 'Supabase',
-        }))
-      : SAMPLE_INSIGHTS.map((i) => ({
-          id: i.id,
-          category: i.category,
-          priority: i.priority,
-          title: i.title,
-          nugget: i.nugget,
-          rice: i.rice,
-          source: i.source,
-        }))
+  const cards = useMemo(() => {
+    if (live && live.length > 0) {
+      return live.map((i) => ({
+        id: i.id || i.insight || 'row',
+        category: i.category || 'Insight',
+        priority: 'Live',
+        title: i.insight || 'Insight',
+        nugget: i.transcript_nugget || i.insight || '',
+        why: i.why_it_matters || '',
+        rice: i.rice_score || {},
+        source: i.video_id ? `video ${i.video_id}` : 'Supabase',
+      }))
+    }
+    return SAMPLE_INSIGHTS.map((i) => ({
+      id: i.id,
+      category: i.category,
+      priority: i.priority,
+      title: i.title,
+      nugget: i.nugget,
+      why: '',
+      rice: i.rice,
+      source: i.source,
+    }))
+  }, [live])
+
+  const categories = useMemo(() => ['all', ...Array.from(new Set(cards.map((c) => c.category)))], [cards])
+  const filtered = cards.filter((c) => cat === 'all' || c.category === cat)
+  const sel = filtered.find((c) => c.id === selected) || null
+
+  async function exportMd() {
+    if (!sel) return
+    const md = `# ${sel.title}\n\n**Category:** ${sel.category}\n\n> ${sel.nugget}\n\n${sel.why ? `**Why it matters:** ${sel.why}\n\n` : ''}**Source:** ${sel.source}\n`
+    try {
+      await navigator.clipboard.writeText(md)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* ignore */
+    }
+  }
 
   return (
     <section className="panel">
+      <div className="chips">
+        <span className={`badge-live`}>{source === 'supabase' ? '● Supabase live' : source === 'loading' ? '… loading' : '○ Local demo'}</span>
+      </div>
       <h1>Pipeline & insights</h1>
       <p className="lede">
-        Data source: <strong>{source === 'supabase' ? 'Supabase (live)' : source === 'loading' ? 'loading…' : 'local demo fallback'}</strong>.
-        Full ingest stack:{' '}
-        <a href="https://github.com/brianference/youtube-intel-scan">youtube-intel-scan</a> · Cloudflare Pages + Supabase.
+        Product: <strong>YouTube Intel Scan</strong>. Full ingest in{' '}
+        <a href="https://github.com/brianference/youtube-intel-scan">youtube-intel-scan</a>.
       </p>
-      <h2>Pipeline</h2>
-      <div className="grid-2">
+
+      <div className="pipeline" aria-label="Pipeline">
         {PIPELINE.map((p) => (
-          <article key={p.step} className="card">
-            <h3>
-              {p.step}. {p.title}
-            </h3>
-            <p>{p.detail}</p>
-          </article>
+          <div key={p.step} className="pipe-step">
+            <strong>Step {p.step}</strong>
+            {p.title}
+          </div>
         ))}
       </div>
-      <h2>Insight cards</h2>
+
+      <div className="filters">
+        <select value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Category">
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="btn btn-primary" disabled={!sel} onClick={() => void exportMd()}>
+          {copied ? 'Copied markdown' : 'Export selected'}
+        </button>
+      </div>
+
       <div className="list">
-        {cards.map((i) => (
-          <article key={i.id} className="card row-card">
-            <div>
+        {filtered.map((i) => (
+          <article
+            key={i.id}
+            className={`card row-card fleet-card${selected === i.id ? ' is-active' : ''}`}
+            onClick={() => setSelected(i.id)}
+            onKeyDown={(e) => e.key === 'Enter' && setSelected(i.id)}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="grow">
               <div className="chips">
                 <span className="chip">{i.category}</span>
                 <span className="chip">{i.priority}</span>
               </div>
               <h3>{i.title}</h3>
               <p>{i.nugget}</p>
-              <p className="meta">
-                RICE R{i.rice.reach ?? '—'}/I{i.rice.impact ?? '—'}/C{i.rice.confidence ?? '—'}/E{i.rice.effort ?? '—'} · {i.source}
-              </p>
+              <RiceBars rice={i.rice} />
+              <p className="meta">{i.source}</p>
             </div>
           </article>
         ))}
