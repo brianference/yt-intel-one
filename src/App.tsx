@@ -154,13 +154,68 @@ function FeaturesPage() {
   )
 }
 
+type LiveInsight = {
+  id?: string
+  insight?: string
+  category?: string | null
+  transcript_nugget?: string | null
+  rice_score?: { reach?: number; impact?: number; confidence?: number; effort?: number } | null
+  video_id?: string
+}
+
 function ProductApp() {
+  const [live, setLive] = useState<LiveInsight[] | null>(null)
+  const [source, setSource] = useState<string>('loading')
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/insights')
+      .then((r) => r.json())
+      .then((body: { source?: string; insights?: LiveInsight[] }) => {
+        if (cancelled) return
+        const rows = Array.isArray(body.insights) ? body.insights : []
+        setLive(rows)
+        setSource(body.source === 'supabase' && rows.length > 0 ? 'supabase' : 'local')
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLive([])
+          setSource('local')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const cards =
+    live && live.length > 0
+      ? live.map((i) => ({
+          id: i.id || i.insight || 'row',
+          category: i.category || 'Insight',
+          priority: 'Live',
+          title: i.insight || 'Insight',
+          nugget: i.transcript_nugget || i.insight || '',
+          rice: i.rice_score || {},
+          source: i.video_id ? `video ${i.video_id}` : 'Supabase',
+        }))
+      : SAMPLE_INSIGHTS.map((i) => ({
+          id: i.id,
+          category: i.category,
+          priority: i.priority,
+          title: i.title,
+          nugget: i.nugget,
+          rice: i.rice,
+          source: i.source,
+        }))
+
   return (
     <section className="panel">
-      <h1>Pipeline & sample insights</h1>
+      <h1>Pipeline & insights</h1>
       <p className="lede">
-        Demo catalog for portfolio viewing. Production app needs Postgres + YouTube + Anthropic keys (
-        <a href="https://github.com/brianference/youtube-intel-scan">repo README</a>).
+        Data source: <strong>{source === 'supabase' ? 'Supabase (live)' : source === 'loading' ? 'loading…' : 'local demo fallback'}</strong>.
+        Full ingest stack:{' '}
+        <a href="https://github.com/brianference/youtube-intel-scan">youtube-intel-scan</a> · Cloudflare Pages + Supabase.
       </p>
       <h2>Pipeline</h2>
       <div className="grid-2">
@@ -173,9 +228,9 @@ function ProductApp() {
           </article>
         ))}
       </div>
-      <h2>Sample insight cards</h2>
+      <h2>Insight cards</h2>
       <div className="list">
-        {SAMPLE_INSIGHTS.map((i) => (
+        {cards.map((i) => (
           <article key={i.id} className="card row-card">
             <div>
               <div className="chips">
@@ -185,7 +240,7 @@ function ProductApp() {
               <h3>{i.title}</h3>
               <p>{i.nugget}</p>
               <p className="meta">
-                RICE R{i.rice.reach}/I{i.rice.impact}/C{i.rice.confidence}/E{i.rice.effort} · {i.source}
+                RICE R{i.rice.reach ?? '—'}/I{i.rice.impact ?? '—'}/C{i.rice.confidence ?? '—'}/E{i.rice.effort ?? '—'} · {i.source}
               </p>
             </div>
           </article>
