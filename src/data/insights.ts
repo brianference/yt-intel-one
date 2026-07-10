@@ -1,3 +1,4 @@
+/** Pipeline + sample insights + integrations. */
 /** Sample insight shapes matching the full youtube-intel-scan elite framework (demo catalog). */
 export const PIPELINE = [
   { step: 1, title: "Ingest channel or video", detail: "YouTube Data API metadata; Shorts filtered out" },
